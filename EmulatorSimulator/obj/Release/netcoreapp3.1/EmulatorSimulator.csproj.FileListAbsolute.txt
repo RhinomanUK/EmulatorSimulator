@@ -12,9 +12,9 @@ I:\EMUSIM\EmulatorSimulator\EmulatorSimulator\bin\Release\netcoreapp3.1\runtimes
 I:\EMUSIM\EmulatorSimulator\EmulatorSimulator\bin\Release\netcoreapp3.1\runtimes\linux\lib\netstandard2.0\System.IO.Ports.dll
 I:\EMUSIM\EmulatorSimulator\EmulatorSimulator\bin\Release\netcoreapp3.1\runtimes\osx\lib\netstandard2.0\System.IO.Ports.dll
 I:\EMUSIM\EmulatorSimulator\EmulatorSimulator\bin\Release\netcoreapp3.1\runtimes\win\lib\netstandard2.0\System.IO.Ports.dll
-I:\EMUSIM\EmulatorSimulator\EmulatorSimulator\obj\Release\netcoreapp3.1\EmulatorSimulator.csprojAssemblyReference.cache
 I:\EMUSIM\EmulatorSimulator\EmulatorSimulator\obj\Release\netcoreapp3.1\EmulatorSimulator.AssemblyInfoInputs.cache
 I:\EMUSIM\EmulatorSimulator\EmulatorSimulator\obj\Release\netcoreapp3.1\EmulatorSimulator.AssemblyInfo.cs
 I:\EMUSIM\EmulatorSimulator\EmulatorSimulator\obj\Release\netcoreapp3.1\EmulatorSimulator.csproj.CopyComplete
 I:\EMUSIM\EmulatorSimulator\EmulatorSimulator\obj\Release\netcoreapp3.1\EmulatorSimulator.dll
 I:\EMUSIM\EmulatorSimulator\EmulatorSimulator\obj\Release\netcoreapp3.1\EmulatorSimulator.pdb
+I:\EMUSIM\EmulatorSimulator\EmulatorSimulator\obj\Release\netcoreapp3.1\EmulatorSimulator.csprojAssemblyReference.cache

@@ -1,8 +1,15 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Version>0.1</Version>
+    <Authors>bmgjet</Authors>
+    <Company>hondyno</Company>
+    <Product>hondyno emulator simulator</Product>
+    <Description>Software to help you debug that moates emulator protocol.</Description>
+    <Copyright>bmgjet 2020</Copyright>
+    <PackageProjectUrl>https://github.com/bmgjet/EmulatorSimulator</PackageProjectUrl>
   </PropertyGroup>
 
   <ItemGroup>

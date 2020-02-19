@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>EmulatorSimulator</id>
+    <version>0.1.0</version>
+    <authors>bmgjet</authors>
+    <owners>bmgjet</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectUrl>https://github.com/bmgjet/EmulatorSimulator</projectUrl>
+    <description>Software to help you debug that moates emulator protocol.</description>
+    <copyright>bmgjet 2020</copyright>
+    <dependencies>
+      <group targetFramework=".NETCoreApp3.1">
+        <dependency id="System.IO.Ports" version="4.7.0" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="I:\EMUSIM\EmulatorSimulator\EmulatorSimulator\bin\Release\netcoreapp3.1\EmulatorSimulator.runtimeconfig.json" target="lib\netcoreapp3.1\EmulatorSimulator.runtimeconfig.json" />
+    <file src="I:\EMUSIM\EmulatorSimulator\EmulatorSimulator\bin\Release\netcoreapp3.1\EmulatorSimulator.dll" target="lib\netcoreapp3.1\EmulatorSimulator.dll" />
+  </files>
+</package>
