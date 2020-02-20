@@ -14,16 +14,17 @@ namespace EmulatorSimulator
         ██╔══╝  ██║╚██╔╝██║██║   ██║╚════██║██║██║╚██╔╝██║
         ███████╗██║ ╚═╝ ██║╚██████╔╝███████║██║██║ ╚═╝ ██║
         ╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚══════╝╚═╝╚═╝     ╚═╝
-        BMGJET 2020" + "\n";
-        public static string HS = " Emulator Simulator 0.1\n\n";
-        public static string FS = "\n(Enter The Number To Select Option)";
+        BMGJET 2020" + "\n"; //Header image
+        public static string HS = " Emulator Simulator 0.1\n\n"; //Header string
+        public static string FS = "\n(Enter The Number To Select Option)"; //Help tip.
+        public static bool NoDelay = false;
         private static SerialPort serialPort_0;
-        public static byte[] Bin;
         public static byte Protocol;
-        public static string BinFile;
+        public static byte[] Bin;
         public static byte[] Version;
         public static int TimeOut = 60;
-        public static byte[] Serial = new byte[] { 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 };
+        public static string BinFile;
+        public static byte[] Serial = new byte[] { 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 }; 
         public static byte[] EEPROM = new byte[] { 0x42, 0x4d, 0x47, 0x4a, 0x45, 0x54, 0x20, 0x32, 0x30, 0x32, 0x30 };
         //███████╗██╗   ██╗███╗   ██╗ ██████╗████████╗██╗ ██████╗ ███╗   ██╗███████╗
         //██╔════╝██║   ██║████╗  ██║██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
@@ -61,6 +62,12 @@ namespace EmulatorSimulator
             }
         }
 
+        public static void SetNoDelay() //Disables delay that emulates bluetooth speed.
+        {
+            NoDelay = !NoDelay;
+            Console.WriteLine("No Delay Mode: "+ NoDelay);
+        }
+
         static byte Setup()
         {
             //Define what protocol to use.
@@ -68,7 +75,7 @@ namespace EmulatorSimulator
             Console.WriteLine("\nWhat Protocol To Emulate: \n(1) Moates Ostrich 1.0\n(2) Moates Ostrich 2.0\n(3) CobraRTP\n(4) ECUTamer\n(0) Moates Demon(WIP)" + FS);
             FS = "";
             int.TryParse(Console.ReadLine(), out P);
-            switch (P)
+            switch (P)  //Switch version array for what emulator your using.
             {
                 case 0:
                     Console.WriteLine("Protocol: Moates Demon");
@@ -76,7 +83,7 @@ namespace EmulatorSimulator
                     break;
                 case 1:
                     Console.WriteLine("Protocol: Moates Ostrich 1.0");
-                    Version = new byte[] { 0x01, 0x28, 0x4F };
+                    Version = new byte[] { 0x10, 0x07, 0x4F };
                     break;
                 case 2:
                     Console.WriteLine("Protocol: Moates Ostrich 2.0");
@@ -88,7 +95,7 @@ namespace EmulatorSimulator
                     break;
                 default:
                     Console.WriteLine("Protocol: ECUTamer");
-                    Version = new byte[] { 0x14, 0x09, 0x4F };
+                    Version = new byte[] { 0x01, 0x28, 0x4F };
                     break;
             }
             try
@@ -197,7 +204,7 @@ namespace EmulatorSimulator
                 ██╔══██║██╔══╝  ██║     ██╔═══╝ 
                 ██║  ██║███████╗███████╗██║     
                 ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝" + "\n";
-            string keys = "ESC = Exit Program\nSpace = Save Memory to File\nBackspace = Clear Memory";
+            string keys = "ESC = Exit Program\nSpace = Save Memory to File\nBackspace = Clear Memory\nF1 = Toggle Bluetooth Delay";
             ConsoleKey H = Console.ReadKey().Key;
             switch (H)
             {
@@ -209,6 +216,9 @@ namespace EmulatorSimulator
                     break;
                 case ConsoleKey.Backspace:
                     ClearFile();
+                    break;
+                case ConsoleKey.F1:
+                    SetNoDelay();
                     break;
                 default:
                     Console.WriteLine(HelpHeader + Encoding.ASCII.GetString(EEPROM) + HS + keys);
@@ -226,8 +236,14 @@ namespace EmulatorSimulator
         {
             //Handles Incoming data.
             SerialPort sp = (SerialPort)sender;
-
-            Thread.Sleep(TimeOut);// Delay to allow bluetooth buffer to fill before reading.
+            if (!NoDelay)
+            {
+                Thread.Sleep(TimeOut);// Delay to allow bluetooth buffer to fill before reading.
+            }
+            else
+            {
+                Thread.Sleep(10);// Delay 5ms to reduce cpu load.
+            }
             byte[] inputbytes = new byte[sp.BytesToRead];
             sp.Read(inputbytes, 0, inputbytes.Length);
             if (inputbytes.Length != 0)
@@ -236,19 +252,31 @@ namespace EmulatorSimulator
                 {
                     if (!DemonAPI(inputbytes, sp))
                     {
-                        Console.Write("SD: " + Encoding.Default.GetString(inputbytes).Substring(0, 16)); //Dump string that failed limited to 16 char
+                        ErrorLog(Encoding.Default.GetString(inputbytes));
                     }
                 }
                 else
                 {
-                    if (!OstrichAPI(inputbytes, sp))
+                    if (!OstrichAPI(inputbytes, sp)) //Trys parse the Ostrich protocol
                     {
-                        Console.Write("SD: " + Encoding.Default.GetString(inputbytes).Substring(0, 16)); //Dump string that failed limited to 16 char
+                        ErrorLog(Encoding.Default.GetString(inputbytes));
                     }
                 }
             }
         }
 
+        private static void ErrorLog(string Debug)
+        {
+            if (Debug.Length > 16)
+            {
+                Debug = Debug.Substring(0, 16); //limited to 16 char
+            }
+            Console.Write("SD: " + Debug); //Dump string that failed
+        }
+    
+
+
+        //Handles outgoing data
         public static void DataSender(byte[] DataByte, SerialPort sp)
         {
             if (sp.IsOpen)
@@ -263,7 +291,6 @@ namespace EmulatorSimulator
         //██║╚██╔╝██║██╔══██║██║██║╚██╗██║
         //██║ ╚═╝ ██║██║  ██║██║██║ ╚████║
         //╚═╝     ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝
-
         static void Main(string[] args)
         {
             //Code starts here
@@ -339,8 +366,43 @@ Press Any Key To Close!
 
         public static bool DemonAPI(byte[] bytearray, SerialPort sp)
         {
-
-            return false;
+            if (VersionRequested(bytearray, sp)) //Version request VV
+            { return true; }
+            if (!StandardCheckSum(bytearray)) //Checksum 
+            { return false; }
+            if (SlowRead(bytearray, sp)) //Read bin bytes slow
+            {
+                TimeOut = 60;
+                return true;
+            }
+            if (SlowWrite(bytearray, sp)) //Write bin bytes slow
+            {
+                TimeOut = 120;
+                return true;
+            }
+            if (FastRead(bytearray, sp)) //Read bin bytes Fast
+            {
+                TimeOut = 60;
+                return true;
+            }
+            if (FastWrite(bytearray, sp)) //Write bin bytes Fast
+            {
+                TimeOut = 600;
+                return true;
+            }
+            if (SerialRequest(bytearray, sp)) //Serial number request
+            { return true; }
+            if (QCSRequest(bytearray, sp)) //Quick CheckSum request BMGJET Protocol
+            { return true; }
+            if (EEPROMRequest(bytearray, sp)) //EEPROM Information requested
+            { return true; }
+            if (EEPROMRequest2(bytearray, sp)) //EEPROM Information requested
+            { return true; }
+            if (BankActive(bytearray, sp)) //Select Active Emulation Bank.
+            { return true; }
+            if (BankStatic(bytearray, sp)) //Select Static Emulation Bank.
+            { return true; }
+            return false; //No valid commands found.
         }
 
         // ██████╗ ███████╗████████╗██████╗ ██╗ ██████╗██╗  ██╗
@@ -351,11 +413,54 @@ Press Any Key To Close!
         // ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝  ╚═╝
         public static bool OstrichAPI(byte[] bytearray, SerialPort sp)
         {
-            int bytelen = bytearray.Length;
-            byte Cchecksum = bytearray[bytelen - 1];
-            byte Tchecksum = 0;
+            if(VersionRequested(bytearray, sp)) //Version request VV
+            {return true;}
+            if (!StandardCheckSum(bytearray)) //Checksum 
+            {return false;}
+            if (SlowRead(bytearray, sp)) //Read bin bytes slow
+            {
+                TimeOut = 60;
+                return true;
+            }
+            if (SlowWrite(bytearray, sp)) //Write bin bytes slow
+            {
+                TimeOut = 120;
+                return true;
+            }
+            if (FastRead(bytearray, sp)) //Read bin bytes Fast
+            {
+                TimeOut = 60;
+                return true;
+            }
+            if (FastWrite(bytearray, sp)) //Write bin bytes Fast
+            {
+                TimeOut = 600;
+                return true;
+            }
+            if (SerialRequest(bytearray, sp)) //Serial number request
+            {return true;}
+            if (QCSRequest(bytearray, sp)) //Quick CheckSum request BMGJET Protocol
+            { return true; }
+            if (EEPROMRequest(bytearray, sp)) //EEPROM Information requested
+            { return true; }
+            if (EEPROMRequest2(bytearray, sp)) //EEPROM Information requested
+            { return true; }
+            if (BankActive(bytearray, sp)) //Select Active Emulation Bank.
+            { return true; }
+            if (BankStatic(bytearray, sp)) //Select Static Emulation Bank.
+            { return true; }
+            return false; //No valid commands found.
+        }
 
-            //Version request VV
+        //███╗   ███╗ ██████╗  █████╗ ████████╗███████╗███████╗
+        //████╗ ████║██╔═══██╗██╔══██╗╚══██╔══╝██╔════╝██╔════╝
+        //██╔████╔██║██║   ██║███████║   ██║   █████╗  ███████╗
+        //██║╚██╔╝██║██║   ██║██╔══██║   ██║   ██╔══╝  ╚════██║
+        //██║ ╚═╝ ██║╚██████╔╝██║  ██║   ██║   ███████╗███████║
+        //╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝╚══════╝
+        public static bool VersionRequested(byte[] bytearray, SerialPort sp)
+        {
+            //VV request
             if (bytearray[0] == 0x56 && bytearray[1] == 0x56)
             {
                 TimeOut = 600;
@@ -363,8 +468,91 @@ Press Any Key To Close!
                 DataSender(Version, sp);
                 return true;
             }
+            return false;
+        }
+        public static bool BankStatic(byte[] bytearray, SerialPort sp)
+        {
+            //Get Static Emulation Bank
+            //42 45 53 DA write
+            //oo read
+            if (bytearray[0] == 0x42 && bytearray[1] == 0x45 && bytearray[2] == 0x53 && bytearray[3] == 0xDA)
+            {
+                Console.WriteLine("Static Bank Info Requested");
+                byte[] BANKINFO = new byte[] { 0x00 };
+                DataSender(BANKINFO, sp);
+                return true;
+            }
+            return false;
+        }
+        public static bool BankActive(byte[] bytearray, SerialPort sp)
+        {
+            //Get Active Emulation Bank Succeeded: Bank 0
+            //42 52 52 Bank write
+            //00            read
+            if (bytearray[0] == 0x42 && bytearray[1] == 0x52 && bytearray[2] == 0x52)
+            {
+                Console.WriteLine("Active Bank Info Requested");
+                byte[] BANKINFO = new byte[] { 0x00 };
+                DataSender(BANKINFO, sp);
+                return true;
+            }
+            return false;
+        }
+
+        public static bool EEPROMRequest(byte[] bytearray, SerialPort sp)
+        {
+            //EEPROM Information requested
+            //45 07 00 01 00 00 00 00 00 00 00 4D write
+            //50 02 00 55 02 01 10 read
+            if (bytearray[0] == 0x45 && bytearray[1] == 0x07 && bytearray[3] == 0x01)
+            {
+                Console.WriteLine("EEPROM Info Requested");
+                byte[] EEPROMINFO = new byte[] { 0x50, 0x02, 0x00, 0x55, 0x02, 0x01, 0x10 };
+                DataSender(EEPROMINFO, sp);
+                return true;
+            }
+            return false;
+        }
 
 
+        public static bool EEPROMRequest2(byte[] bytearray, SerialPort sp)
+        {
+            //EEPROM Information requested
+            //48 52 07 00 01 A2 write
+            //50 02 00 55 02 01 10  read (Ostrich)
+            //44 02 00 55 02 01 10  read (Demon)
+
+            if (bytearray[0] == 0x48 && bytearray[1] == 0x52 && bytearray[2] == 0x07 && bytearray[4] == 0x01 && bytearray[5] == 0xA2)
+            {
+                Console.WriteLine("EEPROM Info Requested");
+                byte[] EEPROMINFO = new byte[] { 0x50, 0x02, 0x00, 0x55, 0x02, 0x01, 0x10 };
+                if (Protocol == 0)
+                {
+                   EEPROMINFO[0] = 0x44;
+                }
+                DataSender(EEPROMINFO, sp);
+                return true;
+            }
+            return false;
+        }
+
+        public static bool SerialRequest(byte[] bytearray, SerialPort sp)
+        {
+            if (bytearray[0] == 0x4E && bytearray[1] == 0x53)
+            {
+                Console.WriteLine("Serial Number Requested");
+                DataSender(Serial, sp);
+                return true;
+            }
+            return false;
+        }
+
+        public static bool StandardCheckSum(byte[] bytearray)
+        {
+            //Checksum used on most packets.
+            byte Tchecksum = 0;
+            int bytelen = bytearray.Length;
+            byte Cchecksum = bytearray[bytelen - 1];
             //Calculate checksum
             for (int i = 0; i <= bytelen - 2; i++)
             {
@@ -377,116 +565,8 @@ Press Any Key To Close!
                 Console.WriteLine("CheckSum Failed");
                 return false; //Not valid stop processing
             }
-
-            //Read bin bytes slow
-            if (bytearray[0] == 0x52 && bytearray.Length == 5)
-            {
-                TimeOut = 60;
-                BinRead(bytearray, sp);
-                return true;
-            }
-
-            //Write bin bytes slow
-            if (bytearray[0] == 0x57)
-            {
-                TimeOut = 120;
-                BinWrite(bytearray, sp);
-                return true;
-            }
-
-            //Write bin bytes fast
-            if (bytearray[0] == 0x5A && bytearray[1] == 0x57)
-            {
-                TimeOut = 600;
-                BinFastWrite(bytearray, sp);
-                return true;
-            }
-
-            //Read bin bytes fast
-            if (bytearray[0] == 0x5A && bytearray[1] == 0x52)
-            {
-                TimeOut = 60;
-                BinFastRead(bytearray, sp);
-                return true;
-            }
-
-            //Serial number request
-            if (bytearray[0] == 0x4E && bytearray[1] == 0x53)
-            {
-                Console.WriteLine("Serial Number Requested");
-                DataSender(Serial, sp);
-                return true;
-            }
-
-            //EEPROM Information requested
-            //45 07 00 01 00 00 00 00 00 00 00 4D write
-            //50 02 00 55 02 01 10 read
-            //BA  read
-            if (bytearray[0] == 0x45 && bytearray[1] == 0x07 && bytearray[3] == 0x01)
-            {
-                Console.WriteLine("EEPROM Info Requested");
-                byte[] EEPROMINFO = new byte[] { 0x50, 0x02, 0x00, 0x55, 0x02, 0x01, 0x10 };
-                DataSender(EEPROMINFO, sp);
-                return true;
-            }
-
-
-            //EEPROM Information requested
-            //48 52 07 00 01 A2 write
-            //50 02 00 55 02 01 10  read
-            //BA  read
-            if (bytearray[0] == 0x48 && bytearray[1] == 0x52 && bytearray[2] == 0x07 && bytearray[4] == 0x01 && bytearray[5] == 0xA2)
-            {
-                Console.WriteLine("EEPROM Info Requested");
-                byte[] EEPROMINFO = new byte[] { 0x50, 0x02, 0x00, 0x55, 0x02, 0x01, 0x10 };
-                DataSender(EEPROMINFO, sp);
-                return true;
-            }
-
-            //Select which bank to emulate
-            //42 45 45 CC write
-            //00 read
-            if (bytearray[0] == 0x42 && bytearray[1] == 0x45 && bytearray[2] == 0x45 && bytearray[3] == 0xCC)
-            {
-                Console.WriteLine("Bank Select Requested");
-                byte[] BANKINFO = new byte[] { 0x00 };
-                DataSender(BANKINFO, sp);
-                return true;
-            }
-
-            //Get Active Emulation Bank Succeeded: Bank 0
-            //42 52 52 E6 write
-            //00 read
-            if (bytearray[0] == 0x42 && bytearray[1] == 0x52 && bytearray[2] == 0x52 && bytearray[3] == 0xE6)
-            {
-                Console.WriteLine("Active Bank Info Requested");
-                byte[] BANKINFO = new byte[] { 0x00 };
-                DataSender(BANKINFO, sp);
-                return true;
-            }
-            //Get Static Emulation Bank
-            //42 45 53 DA write
-            //oo read
-            if (bytearray[0] == 0x42 && bytearray[1] == 0x45 && bytearray[2] == 0x53 && bytearray[3] == 0xDA)
-            {
-                Console.WriteLine("Static Bank Info Requested");
-                byte[] BANKINFO = new byte[] { 0x00 };
-                DataSender(BANKINFO, sp);
-                return true;
-            }
-
-            //Quick CheckSum
-            //Not standard Command Added by BMGJET,
-            //5a 43 53 PacketCS
-            if (bytearray[0] == 0x5A && bytearray[1] == 0x43 && bytearray[2] == 0x53)
-            {
-                QuckCS(sp);
-                return true;
-            }
-
-            return false; //No valid commands found.
+            return true;
         }
-
 
         //Fast Write
         public static void BinFastWrite(byte[] bytearray, SerialPort sp)
@@ -546,8 +626,6 @@ Press Any Key To Close!
             Console.WriteLine(BlockSize + " Bytes read from " + Address);
             DataSender(checksum(Binbuff), sp);
         }
-
-
         //Fast read
         public static void BinFastRead(byte[] bytearray, SerialPort sp)
         {
@@ -601,7 +679,42 @@ Press Any Key To Close!
             newArray[newArray.Length - 1] = cs;
             return newArray;
         }
-
+        public static bool SlowRead(byte[] bytearray, SerialPort sp)
+        {
+            if (bytearray[0] == 0x52 && bytearray.Length == 5) //R
+            {
+                BinRead(bytearray, sp);
+                return true;
+            }
+            return false;
+        }
+        public static bool SlowWrite(byte[] bytearray, SerialPort sp) //W
+        {
+            if (bytearray[0] == 0x57)
+            {
+                BinWrite(bytearray, sp);
+                return true;
+            }
+            return false;
+        }
+        public static bool FastRead(byte[] bytearray, SerialPort sp) //ZR
+        {
+            if (bytearray[0] == 0x5A && bytearray[1] == 0x52)
+            {
+                BinFastRead(bytearray, sp);
+                return true;
+            }
+            return false;
+        }
+        public static bool FastWrite(byte[] bytearray, SerialPort sp) //ZW
+        {
+            if (bytearray[0] == 0x5A && bytearray[1] == 0x57)
+            {
+                BinFastWrite(bytearray, sp);
+                return true;
+            }
+            return false;
+        }
         //███████╗██╗  ██╗████████╗██████╗  █████╗ 
         //██╔════╝╚██╗██╔╝╚══██╔══╝██╔══██╗██╔══██╗
         //█████╗   ╚███╔╝    ██║   ██████╔╝███████║
@@ -610,9 +723,17 @@ Press Any Key To Close!
         //╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
 
         //Quick Check Sum
-        //5a 43 53 PacketCS            write
-        //5a 43 53 MemoryCS PacketCS   read
-
+        //5a 43 53 PacketCS     write
+        //MemoryCS              read
+        public static bool QCSRequest(byte[] bytearray, SerialPort sp)
+        {
+            if (bytearray[0] == 0x5A && bytearray[1] == 0x43 && bytearray[2] == 0x53)
+            {
+                QuckCS(sp);
+                return true;
+            }
+            return false;
+        }
         public static void QuckCS(SerialPort sp)
         {
             //Sum of Emulator Memory.
