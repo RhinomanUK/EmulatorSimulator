@@ -24,7 +24,8 @@ namespace EmulatorSimulator
         public static byte[] Version;
         public static int TimeOut = 60;
         public static string BinFile;
-        public static byte[] Serial = new byte[] { 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 }; 
+        public static byte[] OK = new byte[] { 0x4F };
+        public static byte[] Serial = new byte[] { 0x04, 0x01, 0x10, 0x18, 0x08, 0x10, 0x10, 0x25, 0x46, 0xB7  }; 
         public static byte[] EEPROM = new byte[] { 0x42, 0x4d, 0x47, 0x4a, 0x45, 0x54, 0x20, 0x32, 0x30, 0x32, 0x30 };
         //███████╗██╗   ██╗███╗   ██╗ ██████╗████████╗██╗ ██████╗ ███╗   ██╗███████╗
         //██╔════╝██║   ██║████╗  ██║██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
@@ -144,32 +145,48 @@ namespace EmulatorSimulator
 
         static bool MakeBin()
         {
-            //Makes a Bin File if one not opened.
-            int P;
-            Console.WriteLine("No Bin Loaded\nCreating Blank ECUSIM.bin\nWhat Chip Size Fo You Want To Emulate\n(1) 32KB\n(2) 64KB" + FS);
-            FS = "";
-            int.TryParse(Console.ReadLine(), out P);
-            switch (P)
+            BinFile = Directory.GetCurrentDirectory() + "\\EMUSIM.bin";
+            if (File.Exists(BinFile)) //Checks if old file already exsists.
             {
-                case 2:
-                    Console.WriteLine("Creating 64KB");
-                    Bin = new byte[65536];
-                    break;
-                default:
-                    Console.WriteLine("Creating 32KB");
-                    Bin = new byte[32768];
-                    break;
+                Console.WriteLine("Found a exsisting bin file:\n" + BinFile);
+                if (!LoadBin()) //Trys to load the file.
+                {
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
             }
-            try
+            else
             {
-                BinFile = Directory.GetCurrentDirectory() + "\\EMUSIM.bin";
-                File.WriteAllBytes(BinFile, Bin);
-                return true;
-            }
-            catch
-            {
-                Console.WriteLine("Failed to create temp file EMUSIM.bin");
-                return false;
+                //Makes a Bin File if one not opened.
+                int P;
+                Console.WriteLine("No Bin Loaded\nCreating Blank ECUSIM.bin\nWhat Chip Size Fo You Want To Emulate\n(1) 32KB\n(2) 64KB" + FS);
+                FS = "";
+                int.TryParse(Console.ReadLine(), out P);
+                switch (P)
+                {
+                    case 2:
+                        Console.WriteLine("Creating 64KB");
+                        Bin = new byte[65536];
+                        break;
+                    default:
+                        Console.WriteLine("Creating 32KB");
+                        Bin = new byte[32768];
+                        break;
+                }
+                try
+                {
+
+                    File.WriteAllBytes(BinFile, Bin);
+                    return true;
+                }
+                catch
+                {
+                    Console.WriteLine("Failed to create temp file EMUSIM.bin");
+                    return false;
+                }
             }
         }
 
@@ -368,6 +385,8 @@ Press Any Key To Close!
         {
             if (VersionRequested(bytearray, sp)) //Version request VV
             { return true; }
+            if (EnableOnboard(bytearray, sp)) //Enable onboard datalogging.
+            { return true; }
             if (!StandardCheckSum(bytearray)) //Checksum 
             { return false; }
             if (SlowRead(bytearray, sp)) //Read bin bytes slow
@@ -402,6 +421,7 @@ Press Any Key To Close!
             { return true; }
             if (BankStatic(bytearray, sp)) //Select Static Emulation Bank.
             { return true; }
+
             return false; //No valid commands found.
         }
 
@@ -489,11 +509,17 @@ Press Any Key To Close!
             //Get Active Emulation Bank Succeeded: Bank 0
             //42 52 52 Bank write
             //00            read
-            if (bytearray[0] == 0x42 && bytearray[1] == 0x52 && bytearray[2] == 0x52)
+            if (bytearray[0] == 0x42 && bytearray[1] == 0x52)
             {
                 Console.WriteLine("Active Bank Info Requested");
                 byte[] BANKINFO = new byte[] { 0x00 };
                 DataSender(BANKINFO, sp);
+                return true;
+            }
+            if (bytearray[0] == 0x42 && bytearray[1] == 0x53)
+            {
+                Console.WriteLine("Active Bank Info Requested");
+                DataSender(OK, sp);
                 return true;
             }
             return false;
@@ -715,6 +741,23 @@ Press Any Key To Close!
             }
             return false;
         }
+
+        public static bool EnableOnboard(byte[] bytearray, SerialPort sp) //DOLY Enable onboard
+        {
+            if (bytearray[0] == 0x44 && bytearray[1] == 0x4F && bytearray[2] == 0x4C  && bytearray[3] == 0x59)
+            {
+                DataSender(OK, sp);
+                return true;
+            }
+            if (bytearray[0] == 0x44 && bytearray[1] == 0x4F && bytearray[2] == 0x4C && bytearray[3] == 0x79)
+            {
+                DataSender(OK, sp);
+                return true;
+            }
+            return false;
+        }
+
+
         //███████╗██╗  ██╗████████╗██████╗  █████╗ 
         //██╔════╝╚██╗██╔╝╚══██╔══╝██╔══██╗██╔══██╗
         //█████╗   ╚███╔╝    ██║   ██████╔╝███████║
