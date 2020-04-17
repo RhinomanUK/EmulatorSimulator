@@ -3,6 +3,8 @@ using System.IO;
 using System.IO.Ports;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
+
 namespace EmulatorSimulator
 {
     class Program
@@ -25,7 +27,7 @@ namespace EmulatorSimulator
         public static int TimeOut = 60;
         public static string BinFile;
         public static byte[] OK = new byte[] { 0x4F };
-        public static byte[] Serial = new byte[] { 0x04, 0x01, 0x10, 0x18, 0x08, 0x10, 0x10, 0x25, 0x46, 0xB7  }; 
+        public static byte[] Serial = new byte[] { 0x04, 0x01, 0x12, 0x08, 0x08, 0x11, 0x14, 0x25, 0x46, 0xB7  }; 
         public static byte[] EEPROM = new byte[] { 0x42, 0x4d, 0x47, 0x4a, 0x45, 0x54, 0x20, 0x32, 0x30, 0x32, 0x30 };
         //███████╗██╗   ██╗███╗   ██╗ ██████╗████████╗██╗ ██████╗ ███╗   ██╗███████╗
         //██╔════╝██║   ██║████╗  ██║██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
@@ -130,6 +132,7 @@ namespace EmulatorSimulator
                     {
                         serialPort_0.BaudRate = 115200;
                     }
+                    serialPort_0.ReadBufferSize = 64000;
                     serialPort_0.PortName = CP;
                     serialPort_0.DataReceived += new SerialDataReceivedEventHandler(DataReceivedHandler);
                     NC = false;
@@ -259,7 +262,7 @@ namespace EmulatorSimulator
             }
             else
             {
-                Thread.Sleep(10);// Delay 5ms to reduce cpu load.
+                Thread.Sleep(20);// Delay 20ms to reduce cpu load.
             }
             byte[] inputbytes = new byte[sp.BytesToRead];
             sp.Read(inputbytes, 0, inputbytes.Length);
@@ -435,6 +438,16 @@ Press Any Key To Close!
         {
             if(VersionRequested(bytearray, sp)) //Version request VV
             {return true;}
+
+            //Cobra
+            if(SetupLogging(bytearray, sp))
+            {return true;}
+            if (StartLogging(bytearray, sp))
+            {return true;}
+            if (StopLogging(bytearray, sp))
+            {return true;}
+            //Cobra
+
             if (!StandardCheckSum(bytearray)) //Checksum 
             {return false;}
             if (SlowRead(bytearray, sp)) //Read bin bytes slow
@@ -599,7 +612,7 @@ Press Any Key To Close!
         {
             int BlockSize = (256 * (bytearray[2]));
 
-            if (bytearray.Length == BlockSize + 6)
+            if (bytearray.Length == BlockSize + 6) //normal
             {
                 int Address = GetAddress(bytearray[3], bytearray[4]);
 
@@ -612,6 +625,22 @@ Press Any Key To Close!
                 Console.WriteLine(BlockSize + " Bytes written to " + Address);
                 DataSender(OK, sp);
             }
+            else if (bytearray.Length == BlockSize + 8) //encrypt byte 3/4 random encrypt bytes
+            {
+                //int Address = 0;// GetAddress(bytearray[5], bytearray[6]);
+
+                ////Pack bin with write bytes.
+                //for (int i = 0; i < BlockSize; i++)
+                //{
+                //    Bin[Address + i] = bytearray[i + 7];
+                //}
+                //byte[] OK = new byte[] { 0x4F };
+                //Console.WriteLine(BlockSize + " Bytes written to " + Address);
+                //DataSender(OK, sp);
+                Console.WriteLine("Encrypted fast write transfere");
+                DataSender(OK, sp);
+            }
+
         }
 
         //Slow Write
@@ -632,16 +661,51 @@ Press Any Key To Close!
                 Console.WriteLine(BlockSize + " Bytes written to " + Address);
                 DataSender(OK, sp);
             }
-        }
+            else if (bytearray.Length == 8) //encrypted slow write
+            {
+                Console.WriteLine("Encrypted slow write transfere");
+                DataSender(OK, sp);
+            }
+
+            }
 
         //Slow Read
         public static void BinRead(byte[] bytearray, SerialPort sp)
         {
             int BlockSize = GetBlockSize(bytearray[1]);
+            if (bytearray.Length == 6) //normal
+            {
+                //Setup buffer
+                byte[] Binbuff = new byte[BlockSize];
+                int Address = GetAddress(bytearray[3], bytearray[2]);
+
+                //Pack the buffer
+                for (int i = 0; i <= BlockSize - 1; i++)
+                {
+                    Binbuff[i] = Bin[Address + i];
+                }
+                //Output buffer.
+                Console.WriteLine(BlockSize + " Bytes read from " + Address);
+                DataSender(checksum(Binbuff), sp);
+            }
+            else if (bytearray.Length == 8) //encrypted fast read
+            {
+                Console.WriteLine("Encrypted slow read transfere");
+                DataSender(OK, sp);
+            }
+
+        }
+        //Fast read
+        public static void BinFastRead(byte[] bytearray, SerialPort sp)
+        {
+            int BlockSize = (256 * (bytearray[2]));
+
+             if (bytearray.Length == 5) //fast read
+            {
+                int Address = GetAddress(bytearray[3], bytearray[4]);
 
             //Setup buffer
             byte[] Binbuff = new byte[BlockSize];
-            int Address = GetAddress(bytearray[3], bytearray[2]);
 
             //Pack the buffer
             for (int i = 0; i <= BlockSize - 1; i++)
@@ -652,23 +716,11 @@ Press Any Key To Close!
             Console.WriteLine(BlockSize + " Bytes read from " + Address);
             DataSender(checksum(Binbuff), sp);
         }
-        //Fast read
-        public static void BinFastRead(byte[] bytearray, SerialPort sp)
-        {
-            int BlockSize = (256 * (bytearray[2]));
-            int Address = GetAddress(bytearray[3], bytearray[4]);
-
-            //Setup buffer
-            byte[] Binbuff = new byte[BlockSize];
-
-            //Pack the buffer
-            for (int i = 0; i <= BlockSize - 1; i++)
+            else if (bytearray.Length == 8) //encrypted fast read
             {
-                Binbuff[i] = Bin[Address + i];
+                Console.WriteLine("Encrypted fast read transfere");
+                DataSender(OK, sp);
             }
-            //Output buffer.
-            Console.WriteLine(BlockSize + " Bytes read from " + Address);
-            DataSender(checksum(Binbuff), sp);
         }
 
         //Block size correction.
@@ -787,6 +839,97 @@ Press Any Key To Close!
             }
             Console.WriteLine("Quick CheckSum: " + QCS[0].ToString("X2"));
             DataSender(QCS, sp);
+        }
+
+        // ██████╗ ██████╗ ██████╗ ██████╗  █████╗ 
+        //██╔════╝██╔═══██╗██╔══██╗██╔══██╗██╔══██╗
+        //██║     ██║   ██║██████╔╝██████╔╝███████║
+        //██║     ██║   ██║██╔══██╗██╔══██╗██╔══██║
+        //╚██████╗╚██████╔╝██████╔╝██║  ██║██║  ██║
+        // ╚═════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
+        public static bool CobraLogging = false;
+        public static int LoggingSpeed = 70;
+        //L+L Start analog
+        //; stop analog
+        //K change speed
+        //Range 0 - 6.34 (0-255)
+        //H1+D1+H2+D2+H3+D3
+
+        //Request Cobra Analog start reading.
+        public static bool StartLogging(byte[] bytearray, SerialPort sp)
+        {
+            if (bytearray[0] == 0x4C && bytearray[1] == 0x4C && !CobraLogging)
+            {
+                CobraLogging = true;
+                Task.Factory.StartNew(() =>
+                {
+                    CobraAnalog(sp);
+                });
+                Console.WriteLine("CobraRTP Analog Started");
+                return true;
+            }
+            return false;
+        }
+
+        //Request stop of cobra analog reading
+        public static bool StopLogging(byte[] bytearray, SerialPort sp)
+        {
+            if (bytearray[0] == 0x3B && CobraLogging)
+            {
+                Console.WriteLine("CobraRTP Analog Stopped");
+                CobraLogging = false;
+                return true;
+            }
+            return false;
+        }
+
+        //Setup cobra analog speed.
+        public static bool SetupLogging(byte[] bytearray, SerialPort sp)
+        {
+            if (bytearray[0] == 0x4B && CobraLogging)
+            {
+                switch (bytearray[0])
+                {
+                    case 0x30:
+                        LoggingSpeed = 70;
+                        break;
+                    case 0x31:
+                        LoggingSpeed = 130;
+                        break;
+                    case 0x32:
+                        LoggingSpeed = 300;
+                        break;
+                    default:
+                        Console.WriteLine("CobraRTP Analog Speed: " + LoggingSpeed + "ms");
+                        return false;
+                }
+                byte[] OK = new byte[1];
+                OK[0] = 0x4F;
+                Console.WriteLine("CobraRTP Analog Speed Changed To: " + LoggingSpeed + "ms");
+                DataSender(OK, sp);
+                return true;
+            }
+            return false;
+        }
+
+        public static int RandomNumber(int min, int max)
+        {
+            Random random = new Random();
+            return random.Next(min, max);
+        }
+
+        //analog loop.
+        public static void CobraAnalog(SerialPort sp)
+        {
+            while (CobraLogging)
+            {
+                byte[] Datastream = new byte[6] { 0xAF, 0X00, 0xBF, 0x00, 0xCF, 0x00 };
+                Datastream[1] = (byte)RandomNumber(250, 255);
+                Datastream[3] = (byte)RandomNumber(250, 255);
+                Datastream[5] = (byte)RandomNumber(250, 255);
+                DataSender(Datastream, sp);
+                Thread.Sleep(LoggingSpeed);
+            }
         }
     }
 }
